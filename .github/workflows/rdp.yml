@@ -1,0 +1,36 @@
+- name: Download and setup ngrok
+  shell: powershell
+  run: |
+    try {
+      $ngrokUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip"
+      $ngrokZipPath = "$PWD\ngrok.zip"
+
+      Write-Host "📦 Downloading ngrok..."
+      & curl.exe -L $ngrokUrl -o $ngrokZipPath
+
+      if (-Not (Test-Path $ngrokZipPath)) {
+        Write-Error "❌ ngrok.zip was not downloaded. File does not exist."
+        exit 1
+      }
+
+      Write-Host "📂 Extracting ngrok..."
+      Expand-Archive -Path $ngrokZipPath -Force
+
+      Write-Host "📁 Listing extracted files:"
+      Get-ChildItem -Path $PWD -Recurse
+
+      $ngrokPath = Get-ChildItem -Path $PWD -Filter ngrok.exe -Recurse | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+
+      if (-Not $ngrokPath) {
+        Write-Error "❌ ngrok.exe not found after extraction."
+        exit 1
+      }
+
+      Write-Host "🔑 Setting ngrok auth token..."
+      & $ngrokPath authtoken $env:NGROK_AUTH_TOKEN
+
+      Write-Host "✅ ngrok is ready."
+    } catch {
+      Write-Error "❌ ngrok setup failed: $_"
+      exit 1
+    }
