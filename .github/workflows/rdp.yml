@@ -1,36 +1,29 @@
-- name: Download and setup ngrok
-  shell: powershell
-  run: |
-    try {
-      $ngrokUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip"
-      $ngrokZipPath = "$PWD\ngrok.zip"
+name: Cl
+on: [push, workflow_dispatch]
 
-      Write-Host "📦 Downloading ngrok..."
-      & curl.exe -L $ngrokUrl -o $ngrokZipPath
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Download ngrok
+        run: Invoke-WebRequest https://bin.equinox.io/c/by1mqvY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
 
-      if (-Not (Test-Path $ngrokZipPath)) {
-        Write-Error "❌ ngrok.zip was not downloaded. File does not exist."
-        exit 1
-      }
+      - name: Extract ngrok
+        run: Expand-Archive ngrok.zip -DestinationPath .
 
-      Write-Host "📂 Extracting ngrok..."
-      Expand-Archive -Path $ngrokZipPath -Force
+      - name: Auth ngrok
+        run: .\ngrok\ngrok.exe authtoken $env:NGROK_AUTH_TOKEN
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-      Write-Host "📁 Listing extracted files:"
-      Get-ChildItem -Path $PWD -Recurse
+      - name: Enable Remote Desktop
+        run: |
+          Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "DenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" -Name "UserAuthentication" -Value 1
 
-      $ngrokPath = Get-ChildItem -Path $PWD -Filter ngrok.exe -Recurse | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+      - name: Set RDP Password
+        run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "Pessword!" -Force)
 
-      if (-Not $ngrokPath) {
-        Write-Error "❌ ngrok.exe not found after extraction."
-        exit 1
-      }
-
-      Write-Host "🔑 Setting ngrok auth token..."
-      & $ngrokPath authtoken $env:NGROK_AUTH_TOKEN
-
-      Write-Host "✅ ngrok is ready."
-    } catch {
-      Write-Error "❌ ngrok setup failed: $_"
-      exit 1
-    }
+      - name: Create Tunnel
+        run: .\ngrok\ngrok.exe tcp 3389
