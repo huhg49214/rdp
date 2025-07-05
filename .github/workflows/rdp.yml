@@ -11,9 +11,6 @@ jobs:
       - name: Extract ngrok
         run: Expand-Archive ngrok.zip -DestinationPath .
 
-      - name: List files after extraction
-        run: Get-ChildItem -Recurse
-
       - name: Auth ngrok
         run: .\ngrok.exe authtoken $env:NGROK_AUTH_TOKEN
         env:
@@ -28,5 +25,13 @@ jobs:
       - name: Set RDP Password
         run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "Pessword!" -Force)
 
-      - name: Create Tunnel
-        run: .\ngrok.exe tcp 3389
+      - name: Check if RDP port is listening
+        run: netstat -an | findstr ":3389"
+
+      - name: Create Tunnel and keep alive for 6 hours
+        run: |
+          Start-Process -NoNewWindow -FilePath .\ngrok.exe -ArgumentList "tcp 3389"
+          Start-Sleep -Seconds 21600  # 6 hours in seconds
+
+      - name: Show tunnel info
+        run: curl http://127.0.0.1:4040/api/tunnels
